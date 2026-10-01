@@ -8,6 +8,7 @@ const logoutButton = document.querySelector("[data-logout]");
 const addButton = document.querySelector("[data-add]");
 const saveButton = document.querySelector("[data-save]");
 let packages = [];
+let uploading = false;
 
 const fields = [
   ["name", "Destination"], ["package", "Package name"], ["region", "Region"], ["duration", "Duration"],
@@ -22,7 +23,53 @@ function escapeHtml(value) {
 
 function renderPackages() {
   packageList.innerHTML = packages.map((item, index) => `<article class="package-editor" data-index="${index}"><div class="package-editor-heading"><span>${String(index + 1).padStart(2, "0")}</span><h3>${escapeHtml(item.name || "New destination")}</h3><button class="delete-package" type="button" data-delete="${index}" aria-label="Remove ${escapeHtml(item.name || "package")}">Remove</button></div><div class="package-fields">${fields.map(([key, label]) => `<label>${label}${key === "description" ? `<textarea data-field="${key}" rows="4">${escapeHtml(item[key])}</textarea>` : `<input data-field="${key}" value="${escapeHtml(item[key])}" required />`}</label>`).join("")}</div></article>`).join("");
+  addImageControls();
 }
+
+function addImageControls() {
+  packageList.querySelectorAll(".package-editor").forEach((editor) => {
+    const item = packages[Number(editor.dataset.index)];
+    const panel = document.createElement("div");
+    panel.className = "package-image-upload";
+    panel.innerHTML = `<img src="${escapeHtml(item.image)}" alt="Package photo preview" loading="lazy" width="220" height="140" /><label>Upload package photo<input type="file" data-upload accept="image/jpeg,image/png,image/webp" /></label><p data-upload-status role="status">JPG, PNG or WebP, up to 3 MB. Click Save all changes after uploading.</p>`;
+    editor.append(panel);
+  });
+}
+
+packageList.addEventListener("change", async (event) => {
+  if (!event.target.matches("[data-upload]")) return;
+  const file = event.target.files[0];
+  if (!file || uploading) return;
+  const editor = event.target.closest("[data-index]");
+  const item = packages[Number(editor.dataset.index)];
+  const message = editor.querySelector("[data-upload-status]");
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 3 * 1024 * 1024) {
+    message.textContent = "Choose a JPG, PNG or WebP image up to 3 MB.";
+    event.target.value = "";
+    return;
+  }
+  uploading = true;
+  saveButton.disabled = addButton.disabled = true;
+  packageList.querySelectorAll("[data-upload], [data-delete]").forEach((control) => control.disabled = true);
+  message.textContent = "Uploading photo…";
+  try {
+    const accessToken = await token();
+    if (!accessToken) throw new Error("Please sign in again before uploading.");
+    const response = await fetch("/.netlify/functions/package-image", { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": file.type }, body: file });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Upload failed. Please try again.");
+    item.image = data.image;
+    editor.querySelector('[data-field="image"]').value = data.image;
+    editor.querySelector(".package-image-upload img").src = data.image;
+    message.textContent = "Photo uploaded. Click Save all changes to publish it.";
+  } catch (error) { message.textContent = error.message; }
+  finally {
+    uploading = false;
+    saveButton.disabled = addButton.disabled = false;
+    packageList.querySelectorAll("[data-upload], [data-delete]").forEach((control) => control.disabled = false);
+    event.target.value = "";
+  }
+});
 
 async function token() {
   const user = window.netlifyIdentity?.currentUser();

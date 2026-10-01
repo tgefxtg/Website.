@@ -18,7 +18,7 @@ function cleanPackage(value) {
     if (typeof value[field] !== "string" || !value[field].trim() || value[field].length > 600) return null;
     item[field] = value[field].trim();
   }
-  if (!/^(assets\/images\/|https:\/\/)/.test(item.image)) return null;
+  if (!/^(assets\/images\/|https:\/\/)/.test(item.image) && !/^\/\.netlify\/functions\/package-image\?id=[a-f0-9-]{36}\.(jpg|png|webp)$/.test(item.image)) return null;
   return item;
 }
 

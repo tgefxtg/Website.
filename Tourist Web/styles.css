@@ -145,6 +145,11 @@ footer { background:var(--deep); color:#c9d6ca; min-height:105px; padding:0 max(
 }
 
 /* Private package manager */
+.package-image-upload { display:grid; gap:12px; margin-top:22px; padding-top:20px; border-top:1px solid #c9d4c9; }
+.package-image-upload img { width:220px; height:140px; object-fit:cover; border-radius:5px; background:#e9dcc6; }
+.package-image-upload label { display:grid; gap:10px; font-size:.85rem; }
+.package-image-upload input { max-width:100%; }
+.package-image-upload p { margin:0; font-size:.8rem; color:#527164; }
 .admin-page { min-height:100vh; background:linear-gradient(145deg,#0b2019 0%,#173c30 58%,#254d3f 100%); color:#f8f5ed; }
 .admin-header { width:min(1260px,calc(100% - 64px)); margin:0 auto; min-height:94px; display:flex; align-items:center; justify-content:space-between; gap:24px; }
 .admin-brand { color:#fff; }
