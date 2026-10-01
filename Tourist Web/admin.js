@@ -82,4 +82,5 @@ saveButton.addEventListener("click", async () => {
 window.netlifyIdentity?.on("init", updateView);
 window.netlifyIdentity?.on("login", (user) => { window.netlifyIdentity.close(); updateView(user); });
 window.netlifyIdentity?.on("logout", () => updateView(null));
-window.netlifyIdentity?.init();
+// The CDN widget initializes itself on DOMContentLoaded. Calling init again
+// creates a second iframe and can hide the invite/recovery password form.
