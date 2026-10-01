@@ -2,6 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Identity emails land here; the admin page handles password setup.
+      const authParams = new URLSearchParams(window.location.hash.slice(1));
+      if (["invite_token", "recovery_token", "confirmation_token", "access_token"].some((key) => authParams.has(key))) {
+        window.location.replace("admin.html" + window.location.hash);
+      }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Curated Kerala journeys by Harley Wild Escape Holidays. Slow mornings in the hills, backwaters, and personal routes crafted around you." />
     <meta name="robots" content="index, follow" />
