@@ -1,0 +1,17 @@
+{
+  "name": "Harley Wild Escape Holidays",
+  "short_name": "Harley Wild",
+  "description": "Curated Kerala journeys shaped around the version of Kerala you want to remember.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b2019",
+  "theme_color": "#0b2019",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
