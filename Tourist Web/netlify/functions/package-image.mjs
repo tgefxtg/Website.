@@ -1,5 +1,5 @@
 import { getStore } from "@netlify/blobs";
-import { getUser } from "@netlify/identity";
+import { requireAdmin } from "./lib/admin-auth.mjs";
 import { randomUUID } from "node:crypto";
 
 const limit = 3 * 1024 * 1024;
@@ -17,12 +17,10 @@ export default async (request) => {
       return new Response(image, { headers: { "Content-Type": type, "X-Content-Type-Options": "nosniff", "Cache-Control": "public, max-age=31536000, immutable" } });
     }
     if (request.method !== "POST") return reply("Method not allowed.", 405);
-    const user = await getUser();
-    if (!user) return reply("Please sign in first.", 401);
-    const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-    if (!email || user.email?.toLowerCase() !== email || !user.roles?.includes("admin")) return reply("Only the administrator can upload images.", 403);
-    // Require a same-origin browser request, including when auth uses cookies.
+    // Uploads must originate from the site's own admin page.
     if (request.headers.get("origin") !== new URL(request.url).origin) return reply("Invalid request origin.", 403);
+    const access = await requireAdmin(request);
+    if (access.error) return access.error;
     if (Number(request.headers.get("content-length")) > limit) return reply("Choose an image smaller than 3 MB.", 413);
     const bytes = new Uint8Array(await request.arrayBuffer());
     if (!bytes.length || bytes.length > limit) return reply("Choose an image smaller than 3 MB.", 413);

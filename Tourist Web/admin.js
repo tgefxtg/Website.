@@ -9,6 +9,13 @@ const addButton = document.querySelector("[data-add]");
 const saveButton = document.querySelector("[data-save]");
 let packages = [];
 let uploading = false;
+let saving = false;
+
+function setBusyControls() {
+  const busy = uploading || saving;
+  saveButton.disabled = addButton.disabled = logoutButton.disabled = busy;
+  packageList.querySelectorAll("input, textarea, [data-delete]").forEach(control => control.disabled = busy);
+}
 
 const fields = [
   ["name", "Destination"], ["package", "Package name"], ["region", "Region"], ["duration", "Duration"],
@@ -31,7 +38,7 @@ function addImageControls() {
     const item = packages[Number(editor.dataset.index)];
     const panel = document.createElement("div");
     panel.className = "package-image-upload";
-    panel.innerHTML = `<img src="${escapeHtml(item.image)}" alt="Package photo preview" loading="lazy" width="220" height="140" /><label>Upload package photo<input type="file" data-upload accept="image/jpeg,image/png,image/webp" /></label><p data-upload-status role="status">JPG, PNG or WebP, up to 3 MB. Click Save all changes after uploading.</p>`;
+    panel.innerHTML = `<img src="${escapeHtml(item.image)}" alt="Package photo preview" loading="lazy" width="220" height="140" /><label>Choose photo from gallery or computer<input type="file" data-upload accept="image/*" /></label><p data-upload-status role="status">Choose one photo, up to 25 MB. Large photos are resized automatically. Click Save all changes after uploading.</p>`;
     editor.append(panel);
   });
 }
@@ -39,23 +46,19 @@ function addImageControls() {
 packageList.addEventListener("change", async (event) => {
   if (!event.target.matches("[data-upload]")) return;
   const file = event.target.files[0];
-  if (!file || uploading) return;
+  if (!file || uploading || saving) return;
   const editor = event.target.closest("[data-index]");
   const item = packages[Number(editor.dataset.index)];
   const message = editor.querySelector("[data-upload-status]");
-  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 3 * 1024 * 1024) {
-    message.textContent = "Choose a JPG, PNG or WebP image up to 3 MB.";
-    event.target.value = "";
-    return;
-  }
   uploading = true;
-  saveButton.disabled = addButton.disabled = true;
-  packageList.querySelectorAll("[data-upload], [data-delete]").forEach((control) => control.disabled = true);
-  message.textContent = "Uploading photo…";
+  setBusyControls();
+  message.textContent = "Preparing photo…";
   try {
+    const photo = await preparePackagePhoto(file);
     const accessToken = await token();
     if (!accessToken) throw new Error("Please sign in again before uploading.");
-    const response = await fetch("/.netlify/functions/package-image", { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": file.type }, body: file });
+    message.textContent = "Uploading photo…";
+    const response = await fetch("/.netlify/functions/package-image", { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": photo.type }, body: photo });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Upload failed. Please try again.");
     item.image = data.image;
@@ -65,15 +68,14 @@ packageList.addEventListener("change", async (event) => {
   } catch (error) { message.textContent = error.message; }
   finally {
     uploading = false;
-    saveButton.disabled = addButton.disabled = false;
-    packageList.querySelectorAll("[data-upload], [data-delete]").forEach((control) => control.disabled = false);
+    setBusyControls();
     event.target.value = "";
   }
 });
 
 async function token() {
   const user = window.netlifyIdentity?.currentUser();
-  return user ? user.jwt() : null;
+  return user ? user.jwt(true) : null;
 }
 
 async function loadPackages() {
@@ -111,11 +113,13 @@ packageList.addEventListener("click", (event) => {
   renderPackages();
 });
 saveButton.addEventListener("click", async () => {
-  const accessToken = await token();
-  if (!accessToken) { statusMessage.textContent = "Your session ended. Please sign in again."; return; }
-  saveButton.disabled = true;
+  if (uploading || saving) return;
+  saving = true;
+  setBusyControls();
   statusMessage.textContent = "Saving your packages…";
   try {
+    const accessToken = await token();
+    if (!accessToken) throw new Error("Your session ended. Please sign in again.");
     const response = await fetch("/.netlify/functions/packages", { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ packages }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Could not save packages.");
@@ -123,7 +127,7 @@ saveButton.addEventListener("click", async () => {
     renderPackages();
     statusMessage.textContent = "Saved. Your website now shows the updated packages.";
   } catch (error) { statusMessage.textContent = error.message; }
-  finally { saveButton.disabled = false; }
+  finally { saving = false; setBusyControls(); }
 });
 
 window.netlifyIdentity?.on("init", updateView);

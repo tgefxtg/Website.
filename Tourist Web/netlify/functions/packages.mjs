@@ -1,5 +1,5 @@
 import { getStore } from "@netlify/blobs";
-import { getUser } from "@netlify/identity";
+import { requireAdmin } from "./lib/admin-auth.mjs";
 import { defaultPackages } from "./default-packages.mjs";
 
 const STORE_NAME = "harley-wild-packages";
@@ -28,22 +28,11 @@ async function readPackages() {
   return Array.isArray(saved) ? saved : defaultPackages;
 }
 
-async function requireAdmin() {
-  const user = await getUser();
-  const allowedEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-  const isAllowedEmail = allowedEmail && user?.email?.toLowerCase() === allowedEmail;
-  if (!user) return { error: json({ error: "Please sign in first." }, 401) };
-  if (!user.roles?.includes("admin") || !isAllowedEmail) {
-    return { error: json({ error: "You do not have permission to manage packages." }, 403) };
-  }
-  return { user };
-}
-
 export default async (request) => {
   if (request.method === "GET") return json({ packages: await readPackages() });
   if (request.method !== "PUT") return json({ error: "Method not allowed." }, 405);
 
-  const access = await requireAdmin();
+  const access = await requireAdmin(request);
   if (access.error) return access.error;
 
   let payload;
